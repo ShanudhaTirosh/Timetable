@@ -1,0 +1,2289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#667eea">
+    <title>O/L Study Timetable</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Firebase SDK -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-app-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-firestore-compat.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/firebase/9.22.0/firebase-auth-compat.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .mode-toggle {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .mode-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .mode-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+        }
+
+        .mode-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 40px;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 20px;
+            font-weight: 700;
+        }
+
+        .header-info {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .info-field {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .info-field label {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .info-field input {
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 8px;
+            padding: 10px 15px;
+            color: white;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .info-field input::placeholder {
+            color: rgba(255,255,255,0.6);
+        }
+
+        .progress-section {
+            margin-top: 20px;
+        }
+
+        .progress-label {
+            font-size: 12px;
+            opacity: 0.9;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .progress-bar {
+            height: 30px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4ade80, #22c55e);
+            width: 0%;
+            transition: width 0.5s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .timetable-wrapper {
+            padding: 40px;
+        }
+
+        .timetable {
+            display: grid;
+            grid-template-columns: 120px repeat(7, 1fr);
+            gap: 1px;
+            background: #e5e7eb;
+            border: 1px solid #e5e7eb;
+        }
+
+        .time-label, .day-header, .slot {
+            background: white;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        .time-label {
+            font-weight: 600;
+            font-size: 14px;
+            color: #374151;
+            justify-content: center;
+            align-items: center;
+            background: #f9fafb;
+        }
+
+        .day-header {
+            font-weight: 700;
+            font-size: 14px;
+            color: #111827;
+            text-align: center;
+            justify-content: center;
+            padding: 20px 15px;
+            background: #f3f4f6;
+        }
+
+        .slot {
+            min-height: 100px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .slot:hover {
+            background: #f9fafb;
+            box-shadow: inset 0 0 0 2px #667eea;
+        }
+
+        .slot.fixed-tuition {
+            background: repeating-linear-gradient(
+                45deg,
+                #fef3c7,
+                #fef3c7 10px,
+                #fde68a 10px,
+                #fde68a 20px
+            );
+            pointer-events: none;
+        }
+
+        .slot.fixed-tuition::before {
+            content: '🎓 Tuition';
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #92400e;
+        }
+
+        .slot-content {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            flex: 1;
+            touch-action: manipulation;
+        }
+
+        .subject-input {
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 8px 10px;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+            width: 100%;
+            transition: all 0.2s ease;
+            touch-action: manipulation;
+        }
+
+        .subject-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .slot-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: auto;
+        }
+
+        .icon-btn {
+            width: 28px;
+            height: 28px;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+            background: white;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .icon-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .icon-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #6b7280;
+            cursor: pointer;
+            margin-left: auto;
+        }
+
+        .checkbox-label input {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .actions {
+            padding: 30px 40px;
+            background: #f9fafb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #374151;
+            border: 2px solid #e5e7eb;
+        }
+
+        .btn-secondary:hover {
+            border-color: #667eea;
+            color: #667eea;
+        }
+
+        .legend {
+            display: flex;
+            gap: 20px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .auth-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .auth-modal.active {
+            display: flex;
+        }
+
+        .auth-content {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            max-width: 400px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .auth-content h2 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: #111827;
+        }
+
+        .auth-content p {
+            color: #6b7280;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .auth-input {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 14px;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .auth-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .auth-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .auth-tab {
+            flex: 1;
+            padding: 10px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .auth-tab.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .sync-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            background: white;
+            border-radius: 8px;
+            font-size: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .sync-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+        }
+
+        .sync-indicator.syncing {
+            background: #f59e0b;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        .sync-indicator.offline {
+            background: #ef4444;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 15px;
+            background: white;
+            border-radius: 8px;
+            font-size: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .user-avatar {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #667eea;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 10px;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 25px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            z-index: 3000;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .notification.show {
+            display: flex;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
+
+        .offline-banner {
+            background: #fef3c7;
+            color: #92400e;
+            padding: 10px 20px;
+            text-align: center;
+            font-size: 13px;
+            font-weight: 500;
+            display: none;
+        }
+
+        .offline-banner.show {
+            display: block;
+        }
+
+        .widget-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 320px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 20px;
+            display: none;
+            z-index: 999;
+        }
+
+        .widget-container.active {
+            display: block;
+        }
+
+        .widget-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .widget-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: #111827;
+        }
+
+        .widget-close {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #6b7280;
+        }
+
+        .widget-time {
+            font-size: 32px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .widget-date {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 15px;
+        }
+
+        .widget-task {
+            background: #f9fafb;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #374151;
+        }
+
+        .widget-toggle-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+            z-index: 998;
+            transition: all 0.3s ease;
+        }
+
+        .widget-toggle-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .widget-toggle-btn.hidden {
+            display: none;
+        }
+
+        body.widget-mode {
+            background: transparent;
+            padding: 0;
+        }
+
+        body.widget-mode .container,
+        body.widget-mode .mode-toggle,
+        body.widget-mode .widget-toggle-btn,
+        body.widget-mode .offline-banner {
+            display: none !important;
+        }
+
+        body.widget-mode .widget-container {
+            position: static;
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto;
+            display: block !important;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .widget-container.standalone {
+            max-width: 100%;
+        }
+
+        .install-widget-section {
+            background: #f9fafb;
+            padding: 20px;
+            border-top: 1px solid #e5e7eb;
+            text-align: center;
+        }
+
+        .install-widget-section h3 {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #111827;
+        }
+
+        .install-widget-section p {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 15px;
+            line-height: 1.6;
+        }
+
+        .install-steps {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            text-align: left;
+        }
+
+        .install-steps ol {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+
+        .install-steps li {
+            margin: 8px 0;
+            font-size: 13px;
+            color: #374151;
+            line-height: 1.5;
+        }
+
+        .install-steps strong {
+            color: #667eea;
+        }
+
+        .widget-url {
+            background: #f3f4f6;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #374151;
+            word-break: break-all;
+            margin: 10px 0;
+            border: 1px solid #e5e7eb;
+        }
+
+        .copy-btn {
+            margin-top: 10px;
+        }
+
+        .widget-preview {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            border-radius: 12px;
+            margin: 15px 0;
+        }
+
+        .widget-preview-content {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .next-session {
+            background: #f0f9ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-top: 15px;
+            border-radius: 8px;
+        }
+
+        .next-session-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #667eea;
+            font-weight: 600;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .next-session-content {
+            font-size: 16px;
+            color: #111827;
+            font-weight: 600;
+        }
+
+        .countdown-timer {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #e5e7eb;
+        }
+
+        .countdown-item {
+            text-align: center;
+        }
+
+        .countdown-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .countdown-label {
+            font-size: 11px;
+            color: #6b7280;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+        }
+
+        .daily-summary {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .summary-card {
+            background: #f9fafb;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .summary-number {
+            font-size: 20px;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .summary-label {
+            font-size: 11px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .mode-toggle,
+            .actions,
+            .offline-banner,
+            .widget-toggle-btn,
+            .widget-container,
+            .install-widget-section {
+                display: none !important;
+            }
+
+            .container {
+                box-shadow: none;
+                border-radius: 0;
+            }
+
+            .header {
+                background: #111827 !important;
+                color: white !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .progress-fill {
+                background: #4ade80 !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .slot.fixed-tuition {
+                background: repeating-linear-gradient(
+                    45deg,
+                    #f3f4f6,
+                    #f3f4f6 10px,
+                    #e5e7eb 10px,
+                    #e5e7eb 20px
+                ) !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+
+            .timetable {
+                page-break-inside: avoid;
+            }
+        }
+
+        body.print-mode {
+            background: white;
+        }
+
+        body.print-mode .container {
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        body.print-mode .header {
+            background: #111827;
+        }
+
+        body.print-mode .progress-fill {
+            background: #6b7280;
+        }
+
+        body.print-mode .slot.fixed-tuition {
+            background: repeating-linear-gradient(
+                45deg,
+                #f3f4f6,
+                #f3f4f6 10px,
+                #e5e7eb 10px,
+                #e5e7eb 20px
+            );
+        }
+
+        body.print-mode .day-header,
+        body.print-mode .time-label {
+            background: #f9fafb;
+        }
+
+        @media (max-width: 1200px) {
+            .container {
+                margin: 10px;
+            }
+
+            .mode-toggle {
+                top: 10px;
+                right: 10px;
+            }
+
+            .mode-btn {
+                padding: 8px 15px;
+                font-size: 13px;
+            }
+        }
+
+        @media (max-width: 992px) {
+            .header h1 {
+                font-size: 28px;
+            }
+
+            .timetable-wrapper {
+                padding: 20px;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .timetable {
+                min-width: 900px;
+            }
+
+            .actions {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .actions > div {
+                width: 100%;
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .legend {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 10px;
+            }
+
+            .mode-toggle {
+                position: static;
+                margin-bottom: 15px;
+                justify-content: center;
+                background: white;
+                padding: 10px;
+                border-radius: 12px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            }
+
+            .mode-btn {
+                flex: 1;
+                min-width: 70px;
+                padding: 8px 10px;
+                font-size: 11px;
+            }
+
+            .sync-status, .user-info {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 24px;
+                margin-bottom: 15px;
+            }
+
+            .header-info {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+
+            .timetable-wrapper {
+                padding: 15px;
+            }
+
+            .timetable {
+                min-width: 800px;
+                gap: 2px;
+            }
+
+            .time-label {
+                font-size: 11px;
+                padding: 10px 5px;
+            }
+
+            .day-header {
+                font-size: 12px;
+                padding: 12px 5px;
+            }
+
+            .slot {
+                min-height: 80px;
+                padding: 10px;
+            }
+
+            .subject-input {
+                font-size: 13px;
+                padding: 6px 8px;
+            }
+
+            .icon-btn {
+                width: 24px;
+                height: 24px;
+                font-size: 12px;
+            }
+
+            .checkbox-label {
+                font-size: 11px;
+            }
+
+            .actions {
+                padding: 20px 15px;
+            }
+
+            .widget-toggle-btn {
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+                bottom: 15px;
+                right: 15px;
+            }
+
+            .widget-container {
+                width: calc(100% - 40px);
+                bottom: 15px;
+                right: 15px;
+                left: 15px;
+                max-width: none;
+            }
+
+            .install-widget-section {
+                padding: 15px;
+            }
+
+            .install-widget-section h3 {
+                font-size: 16px;
+            }
+
+            .widget-preview {
+                padding: 15px;
+            }
+
+            .auth-content {
+                padding: 25px;
+                width: 95%;
+            }
+
+            .auth-content h2 {
+                font-size: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 5px;
+            }
+
+            .container {
+                border-radius: 12px;
+            }
+
+            .header {
+                padding: 15px;
+            }
+
+            .header h1 {
+                font-size: 20px;
+            }
+
+            .info-field label {
+                font-size: 10px;
+            }
+
+            .info-field input {
+                padding: 8px 12px;
+                font-size: 14px;
+            }
+
+            .progress-bar {
+                height: 25px;
+            }
+
+            .progress-fill {
+                font-size: 12px;
+            }
+
+            .timetable-wrapper {
+                padding: 10px;
+            }
+
+            .timetable {
+                min-width: 700px;
+            }
+
+            .time-label {
+                font-size: 10px;
+                padding: 8px 3px;
+                min-width: 80px;
+            }
+
+            .day-header {
+                font-size: 10px;
+                padding: 10px 3px;
+            }
+
+            .slot {
+                min-height: 70px;
+                padding: 8px;
+            }
+
+            .subject-input {
+                font-size: 12px;
+                padding: 5px 6px;
+            }
+
+            .slot-actions {
+                gap: 4px;
+            }
+
+            .icon-btn {
+                width: 22px;
+                height: 22px;
+                font-size: 11px;
+            }
+
+            .checkbox-label {
+                font-size: 10px;
+                gap: 4px;
+            }
+
+            .checkbox-label input {
+                width: 14px;
+                height: 14px;
+            }
+
+            .actions {
+                padding: 15px;
+            }
+
+            .btn {
+                padding: 10px 16px;
+                font-size: 13px;
+                gap: 6px;
+            }
+
+            .legend {
+                font-size: 11px;
+                gap: 10px;
+            }
+
+            .mode-btn {
+                padding: 6px 8px;
+                font-size: 10px;
+            }
+
+            .widget-container {
+                padding: 15px;
+            }
+
+            .widget-time {
+                font-size: 28px;
+            }
+
+            .widget-date {
+                font-size: 12px;
+            }
+
+            .widget-task {
+                font-size: 13px;
+                padding: 10px;
+            }
+
+            .countdown-value {
+                font-size: 20px;
+            }
+
+            .countdown-label {
+                font-size: 10px;
+            }
+
+            .summary-number {
+                font-size: 18px;
+            }
+
+            .install-widget-section {
+                padding: 12px;
+            }
+
+            .install-widget-section h3 {
+                font-size: 14px;
+            }
+
+            .install-widget-section p {
+                font-size: 12px;
+            }
+
+            .install-steps li {
+                font-size: 12px;
+            }
+
+            .widget-url {
+                font-size: 10px;
+                padding: 8px;
+            }
+
+            .auth-content {
+                padding: 20px;
+            }
+
+            .auth-content h2 {
+                font-size: 18px;
+            }
+
+            .auth-input {
+                padding: 10px;
+                font-size: 13px;
+            }
+
+            .notification {
+                font-size: 12px;
+                padding: 12px 20px;
+                max-width: 90%;
+            }
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+            .slot:hover {
+                background: white;
+                box-shadow: none;
+            }
+
+            .slot:active {
+                background: #f9fafb;
+                box-shadow: inset 0 0 0 2px #667eea;
+            }
+
+            .icon-btn {
+                min-width: 32px;
+                min-height: 32px;
+            }
+
+            .icon-btn:hover {
+                background: white;
+                color: inherit;
+                border-color: #e5e7eb;
+            }
+
+            .icon-btn:active {
+                background: #667eea;
+                color: white;
+                border-color: #667eea;
+            }
+
+            .btn:hover {
+                transform: none;
+                box-shadow: none;
+            }
+
+            .btn:active {
+                transform: scale(0.98);
+            }
+
+            .mode-btn:hover {
+                transform: none;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+
+            .mode-btn:active {
+                transform: scale(0.98);
+            }
+
+            .subject-input {
+                font-size: 16px;
+            }
+
+            .auth-input {
+                font-size: 16px;
+            }
+        }
+
+        @media (max-width: 768px) and (orientation: landscape) {
+            .header {
+                padding: 15px 20px;
+            }
+
+            .header h1 {
+                font-size: 20px;
+                margin-bottom: 10px;
+            }
+
+            .header-info {
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+
+            .progress-section {
+                margin-top: 10px;
+            }
+
+            .timetable-wrapper {
+                padding: 15px;
+            }
+
+            .widget-container {
+                width: 350px;
+                right: 15px;
+                left: auto;
+            }
+        }
+
+        @media (min-width: 768px) and (max-width: 992px) {
+            .timetable {
+                grid-template-columns: 100px repeat(7, 1fr);
+            }
+
+            .time-label, .day-header {
+                font-size: 13px;
+            }
+
+            .slot {
+                min-height: 90px;
+            }
+        }
+
+        @media (min-width: 992px) and (max-width: 1200px) {
+            .timetable {
+                grid-template-columns: 110px repeat(7, 1fr);
+            }
+
+            .container {
+                max-width: 100%;
+                margin: 15px;
+            }
+        }
+
+        @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+            .timetable {
+                border-width: 0.5px;
+            }
+
+            .icon-btn {
+                border-width: 0.5px;
+            }
+        }
+
+        .timetable-wrapper::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .timetable-wrapper::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .timetable-wrapper::-webkit-scrollbar-thumb {
+            background: #667eea;
+            border-radius: 10px;
+        }
+
+        .timetable-wrapper::-webkit-scrollbar-thumb:hover {
+            background: #5568d3;
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+            .day-header, .time-label, .legend, .icon-btn {
+                -webkit-user-select: none;
+                user-select: none;
+                -webkit-tap-highlight-color: transparent;
+            }
+        }
+
+        @supports (padding: max(0px)) {
+            body {
+                padding-left: max(20px, env(safe-area-inset-left));
+                padding-right: max(20px, env(safe-area-inset-right));
+                padding-bottom: max(20px, env(safe-area-inset-bottom));
+            }
+
+            .widget-toggle-btn, .widget-container {
+                bottom: max(20px, env(safe-area-inset-bottom));
+                right: max(20px, env(safe-area-inset-right));
+            }
+
+            @media (max-width: 768px) {
+                body {
+                    padding-left: max(10px, env(safe-area-inset-left));
+                    padding-right: max(10px, env(safe-area-inset-right));
+                    padding-bottom: max(10px, env(safe-area-inset-bottom));
+                }
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-banner" id="offlineBanner">
+        ⚠️ You're offline. Changes will sync when you're back online.
+    </div>
+
+    <div class="mode-toggle">
+        <div class="sync-status" id="syncStatus" style="display: none;">
+            <div class="sync-indicator" id="syncIndicator"></div>
+            <span id="syncText">Synced</span>
+        </div>
+        <div class="user-info" id="userInfo" style="display: none;">
+            <div class="user-avatar" id="userAvatar"></div>
+            <span id="userName"></span>
+            <button class="mode-btn" onclick="signOut()" style="padding: 5px 10px; font-size: 12px;">Sign Out</button>
+        </div>
+        <button class="mode-btn" id="authBtn" onclick="openAuthModal()">🔐 Sign In</button>
+        <button class="mode-btn active" onclick="setMode('color')">🎨 Digital</button>
+        <button class="mode-btn" onclick="setMode('print')">🖨️ Print</button>
+    </div>
+
+    <div class="notification" id="notification">
+        <span id="notificationText"></span>
+    </div>
+
+    <div class="auth-modal" id="authModal">
+        <div class="auth-content">
+            <h2>Welcome Back! 👋</h2>
+            <p>Sign in to sync your timetable across all your devices</p>
+            
+            <div class="auth-tabs">
+                <div class="auth-tab active" onclick="switchAuthTab('signin')">Sign In</div>
+                <div class="auth-tab" onclick="switchAuthTab('signup')">Sign Up</div>
+            </div>
+
+            <div id="signinForm">
+                <input type="email" class="auth-input" id="signinEmail" placeholder="Email address">
+                <input type="password" class="auth-input" id="signinPassword" placeholder="Password">
+                <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="signIn()">
+                    🔐 Sign In
+                </button>
+            </div>
+
+            <div id="signupForm" style="display: none;">
+                <input type="text" class="auth-input" id="signupName" placeholder="Your name">
+                <input type="email" class="auth-input" id="signupEmail" placeholder="Email address">
+                <input type="password" class="auth-input" id="signupPassword" placeholder="Password (min 6 characters)">
+                <button class="btn btn-primary" style="width: 100%; margin-bottom: 10px;" onclick="signUp()">
+                    ✨ Create Account
+                </button>
+            </div>
+
+            <button class="btn btn-secondary" style="width: 100%;" onclick="closeAuthModal()">
+                Continue Offline
+            </button>
+            
+            <p style="margin-top: 15px; font-size: 12px; text-align: center; color: #9ca3af;">
+                Your data is stored securely with Firebase
+            </p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>O/L Exam Study Timetable</h1>
+            <div class="header-info">
+                <div class="info-field">
+                    <label>Student Name</label>
+                    <input type="text" id="studentName" placeholder="Enter your name" oninput="autoSave()">
+                </div>
+                <div class="info-field">
+                    <label>Exam Dates</label>
+                    <input type="text" value="Feb 17–27, 2026" readonly>
+                </div>
+            </div>
+            <div class="progress-section">
+                <div class="progress-label">Study Progress</div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill">0%</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="timetable-wrapper">
+            <div class="timetable" id="timetable">
+                <div class="time-label">Time</div>
+                <div class="day-header">Monday</div>
+                <div class="day-header">Tuesday</div>
+                <div class="day-header">Wednesday</div>
+                <div class="day-header">Thursday</div>
+                <div class="day-header">Friday</div>
+                <div class="day-header">Saturday</div>
+                <div class="day-header">Sunday</div>
+            </div>
+        </div>
+
+        <div class="actions">
+            <div class="legend">
+                <div class="legend-item">📖 Practice</div>
+                <div class="legend-item">✍️ Test</div>
+                <div class="legend-item">📝 Homework</div>
+                <div class="legend-item">🎓 Fixed Tuition</div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button class="btn btn-secondary" onclick="exportData()">📤 Export</button>
+                <button class="btn btn-secondary" onclick="importData()">📥 Import</button>
+                <button class="btn btn-primary" onclick="window.print()">🖨️ Print</button>
+            </div>
+        </div>
+
+        <div class="install-widget-section">
+        
+            <div class="widget-url" id="widgetUrl">Loading widget URL...</div>
+            <button class="btn btn-primary copy-btn" onclick="copyWidgetUrl()">📋 Copy Widget URL</button>
+            <button class="btn btn-secondary copy-btn" onclick="openWidgetInNewTab()" style="margin-left: 10px;">🔗 Open Widget</button>
+        </div>
+    </div>
+
+    <button class="widget-toggle-btn" onclick="toggleWidget()">🕐</button>
+
+    <div class="widget-container" id="widget">
+        <div class="widget-header">
+            <div class="widget-title">Current Study Session</div>
+            <button class="widget-close" onclick="toggleWidget()">×</button>
+        </div>
+        <div class="widget-time" id="widgetTime">--:--</div>
+        <div class="widget-date" id="widgetDate">Loading...</div>
+        <div class="widget-task" id="widgetTask">No scheduled task</div>
+        
+        <div class="countdown-timer" id="widgetCountdown" style="display: none;">
+            <div class="countdown-item">
+                <div class="countdown-value" id="countdownHours">0</div>
+                <div class="countdown-label">Hours</div>
+            </div>
+            <div class="countdown-item">
+                <div class="countdown-value" id="countdownMinutes">0</div>
+                <div class="countdown-label">Minutes</div>
+            </div>
+            <div class="countdown-item">
+                <div class="countdown-value" id="countdownSeconds">0</div>
+                <div class="countdown-label">Seconds</div>
+            </div>
+        </div>
+
+        <div class="next-session" id="nextSession" style="display: none;">
+            <div class="next-session-title">Next Session</div>
+            <div class="next-session-content" id="nextSessionContent">--</div>
+        </div>
+
+        <div class="daily-summary">
+            <div class="summary-card">
+                <div class="summary-number" id="todayTotal">0</div>
+                <div class="summary-label">Today's Tasks</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-number" id="todayCompleted">0</div>
+                <div class="summary-label">Completed</div>
+            </div>
+            <div class="summary-card">
+                <div class="summary-number" id="todayRemaining">0</div>
+                <div class="summary-label">Remaining</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyB6tNDC6zbr1ITPvXVw1jodGpR3RZg6Djc",
+  authDomain: "shanu-fx-timetable.firebaseapp.com",
+  projectId: "shanu-fx-timetable",
+  storageBucket: "shanu-fx-timetable.firebasestorage.app",
+  messagingSenderId: "671839851351",
+  appId: "1:671839851351:web:aa9c463c03443a1e76a412",
+  measurementId: "G-2FJSFPNVTY"
+};
+
+        let db, auth, currentUser = null;
+        let isOnline = navigator.onLine;
+
+        try {
+            firebase.initializeApp(firebaseConfig);
+            db = firebase.firestore();
+            auth = firebase.auth();
+            
+            db.enablePersistence()
+                .catch((err) => {
+                    if (err.code === 'failed-precondition') {
+                        console.log('Persistence failed: Multiple tabs open');
+                    } else if (err.code === 'unimplemented') {
+                        console.log('Persistence not available');
+                    }
+                });
+
+            auth.onAuthStateChanged((user) => {
+                if (user) {
+                    currentUser = user;
+                    updateUserUI(user);
+                    loadDataFromFirebase();
+                } else {
+                    currentUser = null;
+                    updateUserUI(null);
+                    loadDataFromLocal();
+                }
+            });
+        } catch (error) {
+            console.error('Firebase initialization error:', error);
+            showNotification('⚠️ Running in offline mode', 'warning');
+        }
+
+        window.addEventListener('online', () => {
+            isOnline = true;
+            document.getElementById('offlineBanner').classList.remove('show');
+            updateSyncStatus('synced');
+            if (currentUser) {
+                syncPendingChanges();
+            }
+        });
+
+        window.addEventListener('offline', () => {
+            isOnline = false;
+            document.getElementById('offlineBanner').classList.add('show');
+            updateSyncStatus('offline');
+        });
+
+        const timeSlots = [
+            '08:00–10:00',
+            '10:30–12:00',
+            '13:00–14:30',
+            '16:00–18:00',
+            '20:00–22:00',
+            '23:00–01:00'
+        ];
+
+        const slotTimes = [
+            { start: 8, end: 10 },
+            { start: 10.5, end: 12 },
+            { start: 13, end: 14.5 },
+            { start: 16, end: 18 },
+            { start: 20, end: 22 },
+            { start: 23, end: 25 }
+        ];
+
+        const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+        const fixedTuition = [
+            { day: 1, slot: 3 },
+            { day: 3, slot: 2 },
+            { day: 5, slot: 2 }
+        ];
+
+        let touchStartY = 0;
+        let touchEndY = 0;
+
+        document.addEventListener('touchstart', function(e) {
+            touchStartY = e.changedTouches[0].screenY;
+        }, { passive: true });
+
+        document.addEventListener('touchend', function(e) {
+            touchEndY = e.changedTouches[0].screenY;
+            handleSwipe();
+        }, { passive: true });
+
+        function handleSwipe() {
+            const swipeDistance = touchEndY - touchStartY;
+            const swipeThreshold = 50;
+            if (Math.abs(swipeDistance) < swipeThreshold) {
+                return;
+            }
+        }
+
+        document.addEventListener('dblclick', function(e) {
+            if (e.target.closest('.icon-btn') || e.target.closest('.btn')) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        function hapticFeedback() {
+            if ('vibrate' in navigator) {
+                navigator.vibrate(10);
+            }
+        }
+
+        function isTouchDevice() {
+            return (('ontouchstart' in window) ||
+                (navigator.maxTouchPoints > 0) ||
+                (navigator.msMaxTouchPoints > 0));
+        }
+
+        if (isTouchDevice()) {
+            document.body.classList.add('touch-device');
+        }
+
+        window.addEventListener('orientationchange', function() {
+            setTimeout(function() {
+                window.scrollTo(0, 0);
+            }, 100);
+        });
+
+        let viewportHeight = window.innerHeight;
+        window.addEventListener('resize', function() {
+            const currentHeight = window.innerHeight;
+            if (currentHeight < viewportHeight * 0.75) {
+                document.body.classList.add('keyboard-open');
+            } else {
+                document.body.classList.remove('keyboard-open');
+            }
+        });
+
+        document.addEventListener('focusin', function(e) {
+            if (e.target.matches('input, textarea')) {
+                setTimeout(function() {
+                    e.target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }, 300);
+            }
+        });
+
+        function openAuthModal() {
+            document.getElementById('authModal').classList.add('active');
+        }
+
+        function closeAuthModal() {
+            document.getElementById('authModal').classList.remove('active');
+        }
+
+        function switchAuthTab(tab) {
+            const tabs = document.querySelectorAll('.auth-tab');
+            tabs.forEach(t => t.classList.remove('active'));
+            
+            if (tab === 'signin') {
+                tabs[0].classList.add('active');
+                document.getElementById('signinForm').style.display = 'block';
+                document.getElementById('signupForm').style.display = 'none';
+            } else {
+                tabs[1].classList.add('active');
+                document.getElementById('signinForm').style.display = 'none';
+                document.getElementById('signupForm').style.display = 'block';
+            }
+        }
+
+        async function signIn() {
+            const email = document.getElementById('signinEmail').value;
+            const password = document.getElementById('signinPassword').value;
+
+            if (!email || !password) {
+                showNotification('⚠️ Please fill in all fields', 'warning');
+                return;
+            }
+
+            try {
+                await auth.signInWithEmailAndPassword(email, password);
+                closeAuthModal();
+                showNotification('✅ Signed in successfully!', 'success');
+            } catch (error) {
+                showNotification('❌ ' + error.message, 'error');
+            }
+        }
+
+        async function signUp() {
+            const name = document.getElementById('signupName').value;
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+
+            if (!name || !email || !password) {
+                showNotification('⚠️ Please fill in all fields', 'warning');
+                return;
+            }
+
+            if (password.length < 6) {
+                showNotification('⚠️ Password must be at least 6 characters', 'warning');
+                return;
+            }
+
+            try {
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                await userCredential.user.updateProfile({ displayName: name });
+                
+                document.getElementById('studentName').value = name;
+                
+                closeAuthModal();
+                showNotification('✅ Account created successfully!', 'success');
+            } catch (error) {
+                showNotification('❌ ' + error.message, 'error');
+            }
+        }
+
+        async function signOut() {
+            try {
+                await auth.signOut();
+                showNotification('👋 Signed out successfully', 'success');
+            } catch (error) {
+                showNotification('❌ Error signing out', 'error');
+            }
+        }
+
+        function updateUserUI(user) {
+            const authBtn = document.getElementById('authBtn');
+            const userInfo = document.getElementById('userInfo');
+            const syncStatus = document.getElementById('syncStatus');
+
+            if (user) {
+                authBtn.style.display = 'none';
+                userInfo.style.display = 'flex';
+                syncStatus.style.display = 'flex';
+                
+                const displayName = user.displayName || user.email.split('@')[0];
+                document.getElementById('userName').textContent = displayName;
+                document.getElementById('userAvatar').textContent = displayName.charAt(0).toUpperCase();
+            } else {
+                authBtn.style.display = 'block';
+                userInfo.style.display = 'none';
+                syncStatus.style.display = 'none';
+            }
+        }
+
+        function updateSyncStatus(status) {
+            const indicator = document.getElementById('syncIndicator');
+            const text = document.getElementById('syncText');
+
+            indicator.className = 'sync-indicator';
+            
+            switch(status) {
+                case 'syncing':
+                    indicator.classList.add('syncing');
+                    text.textContent = 'Syncing...';
+                    break;
+                case 'synced':
+                    text.textContent = 'Synced';
+                    break;
+                case 'offline':
+                    indicator.classList.add('offline');
+                    text.textContent = 'Offline';
+                    break;
+            }
+        }
+
+        function showNotification(message, type = 'info') {
+            const notification = document.getElementById('notification');
+            const text = document.getElementById('notificationText');
+            
+            text.textContent = message;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        function collectTimetableData() {
+            const data = {
+                studentName: document.getElementById('studentName').value,
+                slots: [],
+                lastUpdated: new Date().toISOString()
+            };
+
+            document.querySelectorAll('.subject-input').forEach(input => {
+                if (input.value) {
+                    const slot = input.closest('.slot');
+                    const icons = Array.from(slot.querySelectorAll('.icon-btn.active')).map(btn => btn.textContent);
+                    const done = slot.querySelector('input[type="checkbox"]').checked;
+
+                    data.slots.push({
+                        day: input.dataset.day,
+                        slot: input.dataset.slot,
+                        subject: input.value,
+                        icons: icons,
+                        done: done
+                    });
+                }
+            });
+
+            return data;
+        }
+
+        function applyTimetableData(data) {
+            if (data.studentName) {
+                document.getElementById('studentName').value = data.studentName;
+            }
+
+            document.querySelectorAll('.subject-input').forEach(input => {
+                input.value = '';
+                const slot = input.closest('.slot');
+                if (slot) {
+                    slot.querySelectorAll('.icon-btn').forEach(btn => btn.classList.remove('active'));
+                    const checkbox = slot.querySelector('input[type="checkbox"]');
+                    if (checkbox) checkbox.checked = false;
+                }
+            });
+
+            if (data.slots) {
+                data.slots.forEach(slotData => {
+                    const input = document.querySelector(`input[data-day="${slotData.day}"][data-slot="${slotData.slot}"]`);
+                    if (input) {
+                        input.value = slotData.subject;
+                        const slot = input.closest('.slot');
+                        
+                        if (slot) {
+                            const iconBtns = slot.querySelectorAll('.icon-btn');
+                            iconBtns.forEach(btn => {
+                                if (slotData.icons && slotData.icons.includes(btn.textContent)) {
+                                    btn.classList.add('active');
+                                }
+                            });
+
+                            const checkbox = slot.querySelector('input[type="checkbox"]');
+                            if (checkbox) checkbox.checked = slotData.done;
+                        }
+                    }
+                });
+            }
+
+            updateProgress();
+        }
+
+        async function saveDataToFirebase() {
+            if (!currentUser) {
+                saveDataToLocal();
+                return;
+            }
+
+            updateSyncStatus('syncing');
+            const data = collectTimetableData();
+
+            try {
+                await db.collection('timetables').doc(currentUser.uid).set(data);
+                updateSyncStatus('synced');
+                saveDataToLocal();
+            } catch (error) {
+                console.error('Error saving to Firebase:', error);
+                updateSyncStatus('offline');
+                saveDataToLocal();
+            }
+        }
+
+        async function loadDataFromFirebase() {
+            if (!currentUser) return;
+
+            try {
+                const doc = await db.collection('timetables').doc(currentUser.uid).get();
+                if (doc.exists) {
+                    applyTimetableData(doc.data());
+                    showNotification('✅ Timetable loaded from cloud', 'success');
+                }
+            } catch (error) {
+                console.error('Error loading from Firebase:', error);
+                loadDataFromLocal();
+            }
+        }
+
+        function saveDataToLocal() {
+            const data = collectTimetableData();
+            localStorage.setItem('olTimetable', JSON.stringify(data));
+        }
+
+        function loadDataFromLocal() {
+            const saved = localStorage.getItem('olTimetable');
+            if (saved) {
+                applyTimetableData(JSON.parse(saved));
+            }
+        }
+
+        async function syncPendingChanges() {
+            if (currentUser && isOnline) {
+                await saveDataToFirebase();
+            }
+        }
+
+        let saveTimeout;
+        function autoSave() {
+            clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                if (currentUser) {
+                    saveDataToFirebase();
+                } else {
+                    saveDataToLocal();
+                }
+            }, 2000);
+        }
+
+        function exportData() {
+            const data = collectTimetableData();
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `ol-timetable-${new Date().toISOString().split('T')[0]}.json`;
+            link.click();
+            
+            showNotification('✅ Timetable exported!', 'success');
+        }
+
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = (event) => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        applyTimetableData(data);
+                        if (currentUser) {
+                            saveDataToFirebase();
+                        } else {
+                            saveDataToLocal();
+                        }
+                        showNotification('✅ Timetable imported!', 'success');
+                    } catch (error) {
+                        showNotification('❌ Invalid file format', 'error');
+                    }
+                };
+                
+                reader.readAsText(file);
+            };
+            
+            input.click();
+        }
+
+        function generateTimetable() {
+            const timetable = document.getElementById('timetable');
+
+            timeSlots.forEach((time, slotIndex) => {
+                const timeLabel = document.createElement('div');
+                timeLabel.className = 'time-label';
+                timeLabel.textContent = time;
+                timetable.appendChild(timeLabel);
+
+                days.forEach((day, dayIndex) => {
+                    const slot = document.createElement('div');
+                    slot.className = 'slot';
+                    slot.dataset.day = dayIndex;
+                    slot.dataset.slot = slotIndex;
+
+                    const isTuition = fixedTuition.some(t => t.day === dayIndex && t.slot === slotIndex);
+
+                    if (isTuition) {
+                        slot.classList.add('fixed-tuition');
+                    } else {
+                        slot.innerHTML = `
+                            <div class="slot-content">
+                                <input type="text" class="subject-input" placeholder="Subject..." data-day="${dayIndex}" data-slot="${slotIndex}" oninput="autoSave()" autocomplete="off">
+                                <div class="slot-actions">
+                                    <div class="icon-btn" title="Practice" onclick="toggleIcon(this); autoSave(); hapticFeedback()">📖</div>
+                                    <div class="icon-btn" title="Test" onclick="toggleIcon(this); autoSave(); hapticFeedback()">✍️</div>
+                                    <div class="icon-btn" title="Homework" onclick="toggleIcon(this); autoSave(); hapticFeedback()">📝</div>
+                                    <label class="checkbox-label">
+                                        <input type="checkbox" onchange="updateProgress(); autoSave(); hapticFeedback()">
+                                        Done
+                                    </label>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    timetable.appendChild(slot);
+                });
+            });
+        }
+
+        function toggleIcon(btn) {
+            btn.classList.toggle('active');
+        }
+
+        function setMode(mode) {
+            const buttons = document.querySelectorAll('.mode-btn');
+            buttons.forEach(btn => {
+                if (btn.textContent.includes('Digital') || btn.textContent.includes('Print')) {
+                    btn.classList.remove('active');
+                }
+            });
+            event.target.classList.add('active');
+
+            if (mode === 'print') {
+                document.body.classList.add('print-mode');
+            } else {
+                document.body.classList.remove('print-mode');
+            }
+        }
+
+        function updateProgress() {
+            const checkboxes = document.querySelectorAll('.checkbox-label input[type="checkbox"]');
+            const checked = Array.from(checkboxes).filter(cb => cb.checked).length;
+            const total = checkboxes.length;
+            const percentage = total > 0 ? Math.round((checked / total) * 100) : 0;
+
+            const progressFill = document.getElementById('progressFill');
+            progressFill.style.width = percentage + '%';
+            progressFill.textContent = percentage + '%';
+        }
+
+        function toggleWidget() {
+            const widget = document.getElementById('widget');
+            widget.classList.toggle('active');
+            if (widget.classList.contains('active')) {
+                updateWidget();
+            }
+        }
+
+        function getCurrentSession() {
+            const now = new Date();
+            const dayIndex = (now.getDay() + 6) % 7;
+            const currentHour = now.getHours() + now.getMinutes() / 60;
+
+            for (let i = 0; i < slotTimes.length; i++) {
+                const slot = slotTimes[i];
+                let start = slot.start;
+                let end = slot.end;
+                
+                if (start > end) {
+                    if (currentHour >= start || currentHour < end) {
+                        return { dayIndex, slotIndex: i, slot };
+                    }
+                } else {
+                    if (currentHour >= start && currentHour < end) {
+                        return { dayIndex, slotIndex: i, slot };
+                    }
+                }
+            }
+            return null;
+        }
+
+        function getNextSession() {
+            const now = new Date();
+            let dayIndex = (now.getDay() + 6) % 7;
+            const currentHour = now.getHours() + now.getMinutes() / 60;
+
+            for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+                const checkDay = (dayIndex + dayOffset) % 7;
+                
+                for (let i = 0; i < slotTimes.length; i++) {
+                    const slot = slotTimes[i];
+                    
+                    if (dayOffset === 0 && slot.start <= currentHour) {
+                        continue;
+                    }
+
+                    const saved = localStorage.getItem('olTimetable');
+                    if (saved) {
+                        const data = JSON.parse(saved);
+                        const sessionData = data.slots.find(s => 
+                            parseInt(s.day) === checkDay && parseInt(s.slot) === i
+                        );
+                        
+                        if (sessionData && !sessionData.done) {
+                            return {
+                                dayIndex: checkDay,
+                                slotIndex: i,
+                                subject: sessionData.subject,
+                                time: timeSlots[i],
+                                daysAway: dayOffset
+                            };
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
+        function updateWidget() {
+            const now = new Date();
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            const seconds = String(now.getSeconds()).padStart(2, '0');
+            
+            document.getElementById('widgetTime').textContent = `${hours}:${minutes}:${seconds}`;
+            
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            document.getElementById('widgetDate').textContent = now.toLocaleDateString('en-US', options);
+
+            const current = getCurrentSession();
+            const taskElement = document.getElementById('widgetTask');
+            const countdownElement = document.getElementById('widgetCountdown');
+
+            if (current) {
+                const saved = localStorage.getItem('olTimetable');
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    const sessionData = data.slots.find(s => 
+                        parseInt(s.day) === current.dayIndex && parseInt(s.slot) === current.slotIndex
+                    );
+                    
+                    if (sessionData && sessionData.subject) {
+                        taskElement.textContent = `📚 ${sessionData.subject} (${timeSlots[current.slotIndex]})`;
+                        
+                        let endHour = current.slot.end >= 24 ? current.slot.end - 24 : current.slot.end;
+                        const endDate = new Date(now);
+                        endDate.setHours(Math.floor(endHour), (endHour % 1) * 60, 0, 0);
+                        if (current.slot.end >= 24) {
+                            endDate.setDate(endDate.getDate() + 1);
+                        }
+                        
+                        const timeLeft = endDate - now;
+                        if (timeLeft > 0) {
+                            countdownElement.style.display = 'flex';
+                            const hoursLeft = Math.floor(timeLeft / (1000 * 60 * 60));
+                            const minutesLeft = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+                            const secondsLeft = Math.floor((timeLeft % (1000 * 60)) / 1000);
+                            
+                            document.getElementById('countdownHours').textContent = hoursLeft;
+                            document.getElementById('countdownMinutes').textContent = minutesLeft;
+                            document.getElementById('countdownSeconds').textContent = secondsLeft;
+                        }
+                    } else {
+                        taskElement.textContent = `⏰ Free time - ${timeSlots[current.slotIndex]}`;
+                        countdownElement.style.display = 'none';
+                    }
+                } else {
+                    taskElement.textContent = `⏰ Free time - ${timeSlots[current.slotIndex]}`;
+                    countdownElement.style.display = 'none';
+                }
+            } else {
+                taskElement.textContent = 'No scheduled task right now';
+                countdownElement.style.display = 'none';
+            }
+
+            const next = getNextSession();
+            const nextSessionElement = document.getElementById('nextSession');
+            if (next) {
+                nextSessionElement.style.display = 'block';
+                let nextText = `${next.subject} - ${next.time}`;
+                if (next.daysAway > 0) {
+                    const dayName = days[next.dayIndex];
+                    nextText = `${next.subject} (${dayName.charAt(0).toUpperCase() + dayName.slice(1)}) - ${next.time}`;
+                }
+                document.getElementById('nextSessionContent').textContent = nextText;
+            } else {
+                nextSessionElement.style.display = 'none';
+            }
+
+            updateDailySummary();
+        }
+
+        function updateDailySummary() {
+            const saved = localStorage.getItem('olTimetable');
+            if (!saved) return;
+
+            const data = JSON.parse(saved);
+            const now = new Date();
+            const dayIndex = (now.getDay() + 6) % 7;
+
+            const todayTasks = data.slots.filter(s => parseInt(s.day) === dayIndex);
+            const completed = todayTasks.filter(s => s.done).length;
+            const remaining = todayTasks.length - completed;
+
+            document.getElementById('todayTotal').textContent = todayTasks.length;
+            document.getElementById('todayCompleted').textContent = completed;
+            document.getElementById('todayRemaining').textContent = remaining;
+        }
+
+        function copyWidgetUrl() {
+            const widgetUrl = window.location.href.split('?')[0] + '?mode=widget';
+            navigator.clipboard.writeText(widgetUrl).then(() => {
+                showNotification('✅ Widget URL copied to clipboard!', 'success');
+            }).catch(() => {
+                showNotification('❌ Could not copy URL. Please copy it manually.', 'error');
+            });
+        }
+
+        function openWidgetInNewTab() {
+            const widgetUrl = window.location.href.split('?')[0] + '?mode=widget';
+            window.open(widgetUrl, '_blank');
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            const widgetUrl = window.location.href.split('?')[0] + '?mode=widget';
+            document.getElementById('widgetUrl').textContent = widgetUrl;
+        });
+
+        setInterval(updateWidget, 1000);
+
+        const urlParams = new URLSearchParams(window.location.search);
+        if (urlParams.get('mode') === 'widget') {
+            document.body.classList.add('widget-mode');
+            document.getElementById('widget').classList.add('standalone');
+            setInterval(updateWidget, 1000);
+            updateWidget();
+        }
+
+        if (!urlParams.get('mode')) {
+            generateTimetable();
+            
+            setTimeout(() => {
+                if (currentUser) {
+                    loadDataFromFirebase();
+                } else {
+                    loadDataFromLocal();
+                }
+            }, 500);
+        }
+    </script>
+</body>
+</html>
